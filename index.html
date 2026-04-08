@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="An interactive trivia quiz app built with Vanilla JS, MVC architecture, and Web Workers."
+    />
+    <meta name="theme-color" content="#6c63ff" />
+    <title>Quiz App</title>
+    <link rel="preconnect" href="https://opentdb.com" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+
+  <body>
+    <header class="app-header" role="banner">
+      <div class="app-header__inner">
+        <h1 class="app-header__logo">
+          <svg
+            aria-hidden="true"
+            focusable="false"
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          QuizMaster
+        </h1>
+        <div
+          class="app-header__score"
+          id="score-badge"
+          aria-live="polite"
+          aria-atomic="true"
+          hidden
+        >
+          Score: <span id="score-value">0</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-main" id="app-main" role="main">
+      <section
+        class="screen screen--loading"
+        id="screen-loading"
+        aria-label="Loading quiz questions"
+        aria-live="polite"
+        hidden
+      >
+        <div class="skeleton-wrapper" aria-hidden="true">
+          <div class="skeleton skeleton--title"></div>
+          <div class="skeleton skeleton--progress"></div>
+          <div class="skeleton-options">
+            <div class="skeleton skeleton--option"></div>
+            <div class="skeleton skeleton--option"></div>
+            <div class="skeleton skeleton--option"></div>
+            <div class="skeleton skeleton--option"></div>
+          </div>
+        </div>
+        <p class="loading-message">Fetching questions&hellip;</p>
+      </section>
+
+      <section
+        class="screen screen--error"
+        id="screen-error"
+        aria-label="Error loading quiz"
+        aria-live="assertive"
+        hidden
+      >
+        <div class="error-card" role="alert">
+          <svg
+            aria-hidden="true"
+            focusable="false"
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <h2 class="error-card__title">Oops! Something went wrong.</h2>
+          <p class="error-card__message" id="error-message">
+            We couldn't fetch the quiz questions. Please check your internet
+            connection.
+          </p>
+          <button class="btn btn--primary" id="btn-retry" type="button">
+            Try Again
+          </button>
+        </div>
+      </section>
+
+      <section
+        class="screen screen--start"
+        id="screen-start"
+        aria-label="Quiz start screen"
+      >
+        <div class="start-card">
+          <h2 class="start-card__title">Ready to test your knowledge?</h2>
+          <p class="start-card__subtitle">
+            10 questions &bull; 10 seconds each &bull; Multiple choice
+          </p>
+          <ul class="start-card__rules" aria-label="Quiz rules">
+            <li>Each question has a strict 10-second time limit.</li>
+            <li>Answer before the timer runs out to earn a point.</li>
+            <li>Correct answers are revealed after each question.</li>
+          </ul>
+          <button
+            class="btn btn--primary btn--large"
+            id="btn-start"
+            type="button"
+          >
+            Start Quiz
+          </button>
+        </div>
+      </section>
+
+      <section
+        class="screen screen--quiz"
+        id="screen-quiz"
+        aria-label="Quiz question"
+        hidden
+      >
+        <header class="quiz-meta">
+          <div class="quiz-meta__progress-label">
+            Question
+            <span id="question-index" aria-live="polite" aria-atomic="true"
+              >1</span
+            >
+            of
+            <span id="question-total">10</span>
+          </div>
+
+          <progress
+            class="quiz-progress"
+            id="quiz-progress"
+            max="10"
+            value="0"
+            aria-label="Quiz progress"
+          ></progress>
+
+          <div
+            class="quiz-timer"
+            id="quiz-timer"
+            role="timer"
+            aria-live="assertive"
+            aria-atomic="true"
+            aria-label="Time remaining"
+          >
+            <time id="timer-display" datetime="PT10S">10</time>
+            <span class="quiz-timer__unit" aria-hidden="true">s</span>
+          </div>
+        </header>
+
+        <div class="timer-bar-track" aria-hidden="true">
+          <div class="timer-bar" id="timer-bar"></div>
+        </div>
+
+        <div class="quiz-layout">
+          <div class="quiz-question-col">
+            <p
+              class="quiz-question__category"
+              id="question-category"
+              aria-label="Category"
+            ></p>
+            <h2
+              class="quiz-question__text"
+              id="question-text"
+              tabindex="-1"
+            ></h2>
+          </div>
+
+          <div class="quiz-options-col">
+            <ul
+              class="options-grid"
+              id="options-list"
+              role="list"
+              aria-label="Answer options"
+            ></ul>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="screen screen--results"
+        id="screen-results"
+        aria-label="Quiz results"
+        aria-live="polite"
+        hidden
+      >
+        <div class="results-card">
+          <div
+            class="results-card__badge"
+            id="results-badge"
+            aria-hidden="true"
+          ></div>
+          <h2 class="results-card__title">Quiz Complete!</h2>
+          <p class="results-card__score" aria-label="Your final score">
+            <span id="results-score">0</span>
+            <span class="results-card__score-sep">/</span>
+            <span id="results-total">10</span>
+          </p>
+          <p class="results-card__message" id="results-message"></p>
+          <div class="results-breakdown" aria-hidden="true">
+            <div class="results-breakdown__bar" id="results-bar"></div>
+          </div>
+          <p
+            class="results-breakdown__label"
+            id="results-breakdown-label"
+            aria-live="polite"
+          ></p>
+          <button
+            class="btn btn--primary btn--large"
+            id="btn-restart"
+            type="button"
+          >
+            Play Again
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer" role="contentinfo">
+      <p>
+        Questions sourced from
+        <a href="https://opentdb.com" target="_blank" rel="noopener noreferrer"
+          >Open Trivia DB</a
+        >
+        &bull; Built with Vanilla JS
+      </p>
+    </footer>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
